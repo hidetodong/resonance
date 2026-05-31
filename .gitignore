@@ -1,0 +1,17 @@
+# 依赖与构建产物
+node_modules
+dist
+
+# 个人反思数据 —— 不进仓库（隐私）
+data/
+
+# 工程过程文件（butler 工作流，仅本地保留）
+.ai/
+deliveries/
+.claude/
+CLAUDE.md
+
+# 杂项
+*.local
+*.log
+.DS_Store

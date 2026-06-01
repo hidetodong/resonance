@@ -6,8 +6,8 @@
   "description": "面向个人日常自我提问与反思的卡片列表工具",
   "scripts": {
     "dev": "vite",
-    "type-check": "vue-tsc --noEmit && tsc -p tsconfig.api.json",
-    "test:server": "node --test lib/server/auth.test.ts",
+    "type-check": "vue-tsc --noEmit && tsc -p api/tsconfig.json --noEmit",
+    "test:server": "node --test api/_lib/auth.test.ts",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview"
   },

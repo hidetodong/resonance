@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSession, requireEnv } from '../../lib/server/auth';
+import { getSession, requireEnv } from '../_lib/auth';
 
 /** GET /api/auth/me → {user:{email}} | 401。（dev 由 Vite 中间件回 {authDisabled:true}） */
 export default function handler(req: VercelRequest, res: VercelResponse): void {

@@ -6,9 +6,9 @@ import {
   sessionExp,
   requireEnv,
   DUMMY_HASH,
-} from '../../lib/server/auth';
-import { readBody, isSecure } from '../../lib/server/http';
-import { ensureSchema, findUserByEmail } from '../../lib/server/db';
+} from '../_lib/auth';
+import { readBody, isSecure } from '../_lib/http';
+import { ensureSchema, findUserByEmail } from '../_lib/db';
 
 interface Body {
   email?: string;

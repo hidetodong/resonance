@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSession, requireEnv } from '../lib/server/auth';
-import { readBody } from '../lib/server/http';
-import { ensureSchema, loadData, saveData } from '../lib/server/db';
+import { getSession, requireEnv } from './_lib/auth';
+import { readBody } from './_lib/http';
+import { ensureSchema, loadData, saveData } from './_lib/db';
 import type { AppData } from '../src/domain/types';
 
 /**

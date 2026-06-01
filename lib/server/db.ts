@@ -1,5 +1,4 @@
 import { neon } from '@neondatabase/serverless';
-import { requireEnv } from './auth';
 import type { AppData } from '../../src/domain/types';
 
 /**
@@ -8,9 +7,27 @@ import type { AppData } from '../../src/domain/types';
  * 无需手跑 SQL。数据沿用整包 jsonb（app_data.data）。
  */
 
+// 兼容不同 Vercel/Neon 集成注入的连接串变量名。
+const DB_ENV_CANDIDATES = [
+  'DATABASE_URL',
+  'POSTGRES_URL',
+  'DATABASE_URL_UNPOOLED',
+  'POSTGRES_URL_NON_POOLING',
+];
+
+function databaseUrl(): string {
+  for (const name of DB_ENV_CANDIDATES) {
+    const v = process.env[name];
+    if (v) return v;
+  }
+  throw new Error(
+    `Missing database connection string (tried ${DB_ENV_CANDIDATES.join(', ')})`,
+  );
+}
+
 let _sql: ReturnType<typeof neon> | null = null;
 function sql(): ReturnType<typeof neon> {
-  if (!_sql) _sql = neon(requireEnv('DATABASE_URL'));
+  if (!_sql) _sql = neon(databaseUrl());
   return _sql;
 }
 

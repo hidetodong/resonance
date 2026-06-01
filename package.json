@@ -8,7 +8,7 @@
     "dev": "vite",
     "type-check": "vue-tsc --noEmit && tsc -p tsconfig.api.json",
     "test:server": "node --test lib/server/auth.test.ts",
-    "build": "vue-tsc --noEmit && tsc -p tsconfig.api.json && vite build",
+    "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "dependencies": {

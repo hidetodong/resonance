@@ -1,8 +1,4 @@
 /// <reference types="vite/client" />
 
-interface ImportMetaEnv {
-  /** Supabase 项目 URL（配置后启用登录 + 云端数据） */
-  readonly VITE_SUPABASE_URL?: string;
-  /** Supabase 公开 anon key（前端可见，靠 RLS 兜底） */
-  readonly VITE_SUPABASE_ANON_KEY?: string;
-}
+// 前端不再需要任何 VITE_ 环境变量；后端密钥（DATABASE_URL / SESSION_SECRET /
+// REGISTER_SECRET）均为服务端 env，不进前端产物。

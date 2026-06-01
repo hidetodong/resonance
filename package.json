@@ -6,16 +6,18 @@
   "description": "面向个人日常自我提问与反思的卡片列表工具",
   "scripts": {
     "dev": "vite",
-    "type-check": "vue-tsc --noEmit",
-    "build": "vue-tsc --noEmit && vite build",
+    "type-check": "vue-tsc --noEmit && tsc -p tsconfig.api.json",
+    "test:server": "node --test lib/server/auth.test.ts",
+    "build": "vue-tsc --noEmit && tsc -p tsconfig.api.json && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.2",
+    "@neondatabase/serverless": "^1.1.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@vercel/node": "^5.8.8",
     "@vitejs/plugin-vue": "^5.2.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",

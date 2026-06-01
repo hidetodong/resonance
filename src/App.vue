@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import type { ReflectionDraft } from "./domain/types";
 import { useCards } from "./composables/useCards";
 import { useAuth } from "./composables/useAuth";
-import { isSupabaseConfigured } from "./services/supabase";
 import { formatFullDate } from "./lib/date";
 import LoginView from "./components/LoginView.vue";
 import NewCardDialog from "./components/NewCardDialog.vue";
@@ -28,23 +27,34 @@ const {
   reset,
 } = useCards();
 
-const authRequired = isSupabaseConfigured();
-const { user, ready, signOut } = useAuth();
-const needsLogin = computed(() => authRequired && !user.value);
-const booting = computed(() => authRequired && !ready.value);
+const { user, ready, authDisabled, signOut } = useAuth();
+// 需登录 = 已就绪 && 后端启用认证 && 未登录
+const needsLogin = computed(
+  () => ready.value && !authDisabled.value && !user.value,
+);
+const booting = computed(() => !ready.value);
 
 const confirmOpen = ref(false);
 const pendingDeleteId = ref<string | null>(null);
 const newCardOpen = ref(false);
 
-onMounted(() => {
-  if (!authRequired) load();
-});
-
-// Supabase 模式：会话就绪/登录后加载数据，退出后清空
+// 就绪且无需登录（dev 免认证 / 已登录）时加载一次；退出登录则清空、待下次登录重载。
+let loadedOnce = false;
+watch(
+  [ready, needsLogin],
+  () => {
+    if (ready.value && !needsLogin.value && !loadedOnce) {
+      loadedOnce = true;
+      load();
+    }
+  },
+  { immediate: true },
+);
 watch(user, (u, prev) => {
-  if (u && !prev) load();
-  if (!u && prev) reset();
+  if (!u && prev) {
+    loadedOnce = false;
+    reset();
+  }
 });
 
 async function onLogout() {
@@ -89,9 +99,7 @@ function cancelDelete() {
       <header class="brand">
         <div class="brand-row">
           <h1>Resonance · 睿所纳思</h1>
-          <button v-if="authRequired" class="logout" @click="onLogout">
-            退出
-          </button>
+          <button v-if="user" class="logout" @click="onLogout">退出</button>
         </div>
         <p class="subtitle">
           {{ formatFullDate(todayDate) }} · 待回顾 {{ pendingCount }}

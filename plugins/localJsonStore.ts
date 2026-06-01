@@ -33,6 +33,13 @@ export function localJsonStore(): Plugin {
   return {
     name: 'resonance:local-json-store',
     configureServer(server: ViteDevServer) {
+      // dev 免认证：探测端点回 authDisabled，让前端跳过登录页（生产由 Vercel 函数应答）。
+      server.middlewares.use('/api/auth/me', (_req, res) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({ authDisabled: true }));
+      });
+
       server.middlewares.use('/api/cards', (req, res) => {
         const json = (code: number, body: string) => {
           res.statusCode = code;

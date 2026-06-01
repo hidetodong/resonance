@@ -79,6 +79,13 @@ export function useCards() {
     selectedId.value = cardId;
   }
 
+  /** 清空内存态（退出登录时调用）。 */
+  function reset(): void {
+    cards.value = [];
+    selectedId.value = null;
+    error.value = null;
+  }
+
   return {
     cards,
     selectedId,
@@ -94,5 +101,6 @@ export function useCards() {
     setResolved,
     deleteCard,
     select,
+    reset,
   };
 }

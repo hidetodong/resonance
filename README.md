@@ -1,10 +1,10 @@
 <div align="center">
 
-# Resonance · 睿索纳思
+# Resonance · 睿所纳思
 
 **把同一个问题在时间线上的每一次反思，汇聚成一段回响。**
 
-一个面向个人日常自我提问与反思的轻量卡片工具 · 本地优先 · 零后端
+一个面向个人日常自我提问与反思的轻量卡片工具 · 本地优先 · 可选 Supabase 登录与云端同步
 
 </div>
 
@@ -41,7 +41,8 @@ Resonance 把每个这样的问题做成一张**卡片**，卡片里沉淀你对
 - ✏️ **当天可改、历史只读**：当日条目可反复编辑（防手误），过了今天即锁定，且任何反思永不可删
 - 🎯 **简单行动**：每条反思都鼓励落到一个明天可执行的小动作
 - 📱 **手机友好**：宽屏两栏，窄屏自动切换为栈式 master-detail
-- 💾 **本地优先**：数据落本地文件 / 浏览器，无账号、无后端、无云依赖
+- 🔒 **可选私有访问**：接入 Supabase Auth（邮箱+密码）后仅你登录可见，数据存云端、跨设备同一份，RLS 行级隔离
+- 💾 **本地优先**：默认零账号、零后端——数据落本地文件 / 浏览器；上云是可选项，不配就纯本地
 
 ## 快速开始
 
@@ -59,21 +60,45 @@ pnpm dev
 
 ## 数据与存储
 
-存储层抽象为可插拔的 `StorageAdapter`（`src/services/storage.ts`），按运行环境自动选择：
+存储层抽象为可插拔的 `StorageAdapter`（`src/services/storage.ts`），`createStorage()` 一处按环境自动选择：
 
-| 环境 | 适配器 | 落点 |
+| 条件 | 适配器 | 落点 |
 |---|---|---|
-| 本地开发 `pnpm dev` | `FileAdapter` | 经 Vite 中间件读写本地 `data/cards.json`（人类可读、可自行版本化） |
-| 部署 / `pnpm preview` / Vercel | `LocalAdapter` | 浏览器 `localStorage`，手机开 URL 即用 |
-| 跨设备同步（规划中） | `SupabaseAdapter` | 预留占位，接入时仅需补实现 + 改一处工厂 |
+| **配置了 Supabase**（env 注入 url + anon key） | `SupabaseAdapter` | 登录后读写云端 `app_data` 表，**跨设备同一份** |
+| 本地开发 `pnpm dev`（未配 Supabase） | `FileAdapter` | 经 Vite 中间件读写本地 `data/cards.json`（人类可读、可自行版本化） |
+| 部署 / `pnpm preview`（未配 Supabase） | `LocalAdapter` | 浏览器 `localStorage`，手机开 URL 即用 |
 
-> ⚠️ 开发态（文件）与部署态（localStorage）是**两份独立数据、不互通**；localStorage 清缓存会丢失。durable 的跨设备方案待 Supabase 接入。
+> ⚠️ 三种形态的数据各自独立：文件 / localStorage / 云端互不相通。未配 Supabase 时为**纯本地、免登录**；配了即切换为**登录 + 云端**。
 >
-> 你的本地 `data/cards.json` 不会进入本仓库（已在 `.gitignore` 中排除）。
+> 你的本地 `data/cards.json` 与 `.env.local` 都不会进入本仓库（已在 `.gitignore` 中排除）。
+
+## 登录与访问控制（可选 · Supabase）
+
+不希望别人随意访问、且想让数据跟着你跨设备走时，接入 Supabase 即可——**只有你登录可见，别人打开只看到登录页且无法注册**。
+
+**1. 建 Supabase 项目**，在 SQL Editor 执行：
+
+```sql
+create table public.app_data (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  data jsonb not null default '{"version":1,"cards":[]}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.app_data enable row level security;
+create policy "own row select" on public.app_data for select using (auth.uid() = user_id);
+create policy "own row insert" on public.app_data for insert with check (auth.uid() = user_id);
+create policy "own row update" on public.app_data for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+```
+
+**2. 锁定为仅你可用**：Authentication → Providers/Settings 关闭「Allow new users to sign up」；再到 Users 手动 **Add user**（邮箱+密码），并确保该用户已 confirmed。
+
+**3. 配置环境变量**：复制 `.env.example` 为 `.env.local`，填入 `Project Settings → API` 里的 `URL` 与 `anon public` key（两者均可公开，数据隔离由 RLS 保证）。本地 `pnpm dev` 即进入登录态。
 
 ## 部署（Vercel）
 
-`pnpm build` 产出纯静态 `dist/`，运行期不依赖任何接口。Vercel 自动识别 Vite（Build `vite build` → Output `dist`），导入仓库即可部署；单页应用无需额外 rewrite。本地可用 `pnpm preview` 预览部署态。
+`pnpm build` 产出纯静态 `dist/`。Vercel 自动识别 Vite（Build `vite build` → Output `dist`），导入仓库即可部署；单页应用无需额外 rewrite。
+
+启用登录时，在 Vercel 项目 **Settings → Environment Variables** 配置 `VITE_SUPABASE_URL` 与 `VITE_SUPABASE_ANON_KEY`，重新部署即生效。本地可用 `pnpm preview` 预览部署态。
 
 ## 技术栈
 

@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import type { ReflectionDraft } from "./domain/types";
 import { useCards } from "./composables/useCards";
+import { useAuth } from "./composables/useAuth";
+import { isSupabaseConfigured } from "./services/supabase";
 import { formatFullDate } from "./lib/date";
+import LoginView from "./components/LoginView.vue";
 import NewCardDialog from "./components/NewCardDialog.vue";
 import CardList from "./components/CardList.vue";
 import CardDetail from "./components/CardDetail.vue";
@@ -22,13 +25,31 @@ const {
   setResolved,
   deleteCard,
   select,
+  reset,
 } = useCards();
+
+const authRequired = isSupabaseConfigured();
+const { user, ready, signOut } = useAuth();
+const needsLogin = computed(() => authRequired && !user.value);
+const booting = computed(() => authRequired && !ready.value);
 
 const confirmOpen = ref(false);
 const pendingDeleteId = ref<string | null>(null);
 const newCardOpen = ref(false);
 
-onMounted(load);
+onMounted(() => {
+  if (!authRequired) load();
+});
+
+// Supabase 模式：会话就绪/登录后加载数据，退出后清空
+watch(user, (u, prev) => {
+  if (u && !prev) load();
+  if (!u && prev) reset();
+});
+
+async function onLogout() {
+  await signOut();
+}
 
 function onCreateCard(question: string) {
   addCard(question);
@@ -61,10 +82,17 @@ function cancelDelete() {
 </script>
 
 <template>
-  <div class="app" :class="{ 'has-selection': !!selectedCard }">
+  <div v-if="booting" class="boot">加载中…</div>
+  <LoginView v-else-if="needsLogin" />
+  <div v-else class="app" :class="{ 'has-selection': !!selectedCard }">
     <aside class="sidebar">
       <header class="brand">
-        <h1>Resonance · 睿所纳思</h1>
+        <div class="brand-row">
+          <h1>Resonance · 睿所纳思</h1>
+          <button v-if="authRequired" class="logout" @click="onLogout">
+            退出
+          </button>
+        </div>
         <p class="subtitle">
           {{ formatFullDate(todayDate) }} · 待回顾 {{ pendingCount }}
         </p>
@@ -132,11 +160,37 @@ function cancelDelete() {
   padding: 14px 16px 10px;
   border-bottom: 1px solid var(--line);
 }
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 .brand h1 {
   margin: 0;
   font-size: 18px;
   letter-spacing: 0.04em;
   color: var(--accent);
+}
+.logout {
+  flex: none;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  padding: 2px 8px;
+}
+.logout:hover:not(:disabled) {
+  border-color: var(--line);
+  color: var(--ink);
+}
+.boot {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-soft);
+  font-size: 14px;
 }
 .subtitle {
   margin: 4px 0 0;

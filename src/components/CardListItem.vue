@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { Card, ISODate } from '../domain/types';
 import {
+  CARD_TYPE_LABELS,
   lastReflectedDate,
   latestEntry,
   needsReviewToday,
@@ -28,6 +29,8 @@ const preview = computed(() => latestEntry(props.card)?.thought ?? '');
     </div>
     <p v-if="preview" class="preview">{{ preview }}</p>
     <div class="meta">
+      <span class="type-tag" :class="card.type">{{ CARD_TYPE_LABELS[card.type] }}</span>
+      <span class="dot">·</span>
       <span>反思 {{ count }} 次</span>
       <span class="dot">·</span>
       <span :class="{ stale: pending && count > 0 }">{{ freshness }}</span>
@@ -86,7 +89,17 @@ const preview = computed(() => latestEntry(props.card)?.thought ?? '');
   font-size: 12px;
   color: var(--ink-soft);
   display: flex;
+  align-items: center;
   gap: 4px;
+}
+.type-tag {
+  font-weight: 600;
+}
+.type-tag.reflection {
+  color: var(--accent);
+}
+.type-tag.thinking {
+  color: #3a7ca5;
 }
 .dot {
   opacity: 0.5;

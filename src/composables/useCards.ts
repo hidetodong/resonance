@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue';
-import type { Card, ReflectionDraft } from '../domain/types';
+import type { Card, CardType, ReflectionDraft } from '../domain/types';
+import type { CardTypeFilter } from '../domain/card';
 import * as domain from '../domain/card';
 import { createStorage } from '../services/storage';
 import { today } from '../lib/date';
@@ -14,13 +15,24 @@ export function useCards() {
   const loading = ref(false);
   const error = ref<string | null>(null);
   const todayDate = ref(today());
+  /** 列表类型筛选（纯视图态，不落盘）。 */
+  const typeFilter = ref<CardTypeFilter>('all');
   const storage = createStorage();
 
-  const grouped = computed(() => domain.groupCards(cards.value, todayDate.value));
+  // 全量分组（全局「待回顾」计数用，不受类型筛选影响）。
+  const allGrouped = computed(() => domain.groupCards(cards.value, todayDate.value));
+  // 列表展示分组：先按类型筛选，再按状态分三组。
+  const grouped = computed(() =>
+    domain.groupCards(
+      domain.filterCardsByType(cards.value, typeFilter.value),
+      todayDate.value,
+    ),
+  );
   const selectedCard = computed(
     () => cards.value.find((c) => c.id === selectedId.value) ?? null,
   );
-  const pendingCount = computed(() => grouped.value.pending.length);
+  const pendingCount = computed(() => allGrouped.value.pending.length);
+  const typeCounts = computed(() => domain.countByType(cards.value));
 
   async function persist(): Promise<void> {
     try {
@@ -35,7 +47,8 @@ export function useCards() {
     error.value = null;
     try {
       const data = await storage.load();
-      cards.value = data.cards;
+      // 读边界归一：既有无 type 卡（本地文件 / 线上 Neon）补默认类型，无损读取。
+      cards.value = domain.normalizeAppData(data).cards;
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e);
     } finally {
@@ -43,13 +56,25 @@ export function useCards() {
     }
   }
 
-  async function addCard(question: string): Promise<void> {
+  async function addCard(question: string, type?: CardType): Promise<void> {
     const q = question.trim();
     if (!q) return;
-    const card = domain.createCard(q, todayDate.value);
+    const card = domain.createCard(q, todayDate.value, type);
     cards.value = [card, ...cards.value];
     selectedId.value = card.id;
     await persist();
+  }
+
+  /** 切换某卡类型并持久化。 */
+  async function setCardType(cardId: string, type: CardType): Promise<void> {
+    cards.value = cards.value.map((c) =>
+      c.id === cardId ? domain.setCardType(c, type) : c,
+    );
+    await persist();
+  }
+
+  function setTypeFilter(filter: CardTypeFilter): void {
+    typeFilter.value = filter;
   }
 
   /** 新增 / 覆盖当日反思；想法为空则不保存。 */
@@ -95,10 +120,14 @@ export function useCards() {
     grouped,
     selectedCard,
     pendingCount,
+    typeFilter,
+    typeCounts,
     load,
     addCard,
     saveTodayReflection,
     setResolved,
+    setCardType,
+    setTypeFilter,
     deleteCard,
     select,
     reset,

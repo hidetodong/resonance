@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import type { ReflectionDraft } from "./domain/types";
+import type { CardType, ReflectionDraft } from "./domain/types";
 import { useCards } from "./composables/useCards";
 import { useAuth } from "./composables/useAuth";
 import { formatFullDate } from "./lib/date";
 import LoginView from "./components/LoginView.vue";
 import NewCardDialog from "./components/NewCardDialog.vue";
 import CardList from "./components/CardList.vue";
+import CardTypeFilter from "./components/CardTypeFilter.vue";
 import CardDetail from "./components/CardDetail.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 
@@ -18,10 +19,14 @@ const {
   selectedCard,
   selectedId,
   pendingCount,
+  typeFilter,
+  typeCounts,
   load,
   addCard,
   saveTodayReflection,
   setResolved,
+  setCardType,
+  setTypeFilter,
   deleteCard,
   select,
   reset,
@@ -61,9 +66,12 @@ async function onLogout() {
   await signOut();
 }
 
-function onCreateCard(question: string) {
-  addCard(question);
+function onCreateCard(question: string, type: CardType) {
+  addCard(question, type);
   newCardOpen.value = false;
+}
+function onSetType(type: CardType) {
+  if (selectedCard.value) setCardType(selectedCard.value.id, type);
 }
 
 function onSave(draft: ReflectionDraft) {
@@ -105,6 +113,11 @@ function cancelDelete() {
           {{ formatFullDate(todayDate) }} · 待回顾 {{ pendingCount }}
         </p>
       </header>
+      <CardTypeFilter
+        :current="typeFilter"
+        :counts="typeCounts"
+        @change="setTypeFilter"
+      />
       <CardList
         :grouped="grouped"
         :selected-id="selectedId"
@@ -126,6 +139,7 @@ function cancelDelete() {
         @resolve="onResolve"
         @reopen="onReopen"
         @remove="onRemove"
+        @set-type="onSetType"
       />
       <div v-else class="placeholder">
         <p v-if="loading">加载中…</p>

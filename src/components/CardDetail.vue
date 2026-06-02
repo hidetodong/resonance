@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Card, ISODate, ReflectionDraft } from '../domain/types';
-import { historicalEntries } from '../domain/card';
+import type { Card, CardType, ISODate, ReflectionDraft } from '../domain/types';
+import { CARD_TYPES, CARD_TYPE_LABELS, historicalEntries } from '../domain/card';
 import { formatDate, formatFullDate } from '../lib/date';
 import ReflectionEditor from './ReflectionEditor.vue';
 
@@ -11,6 +11,7 @@ const emit = defineEmits<{
   resolve: [];
   reopen: [];
   remove: [];
+  'set-type': [type: CardType];
 }>();
 
 const history = computed(() => historicalEntries(props.card, props.todayDate));
@@ -27,6 +28,18 @@ const isResolved = computed(() => props.card.status === 'resolved');
         }}</span>
       </div>
       <div class="head-actions">
+        <div class="type-switch" role="group" aria-label="卡片类型">
+          <button
+            v-for="t in CARD_TYPES"
+            :key="t"
+            type="button"
+            class="seg"
+            :class="{ active: card.type === t }"
+            @click="emit('set-type', t)"
+          >
+            {{ CARD_TYPE_LABELS[t] }}
+          </button>
+        </div>
         <button v-if="!isResolved" @click="emit('resolve')">标记阶段性解决</button>
         <button v-else @click="emit('reopen')">恢复进行中</button>
       </div>
@@ -103,6 +116,29 @@ const isResolved = computed(() => props.card.status === 'resolved');
 }
 .head-actions {
   flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.type-switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+}
+.type-switch .seg {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  padding: 3px 12px;
+  border-radius: 999px;
+}
+.type-switch .seg.active {
+  background: var(--accent);
+  color: #fff;
 }
 .timeline {
   list-style: none;

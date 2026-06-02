@@ -4,6 +4,13 @@ export type ISODate = string;
 /** 卡片状态：进行中 / 阶段性解决。 */
 export type CardStatus = 'open' | 'resolved';
 
+/**
+ * 卡片类型（承载 Reflect.md 的 Reflection vs Thinking 区分）：
+ * - reflection：审视已存在的现状 / 旧问题（理解、解构、重构）。
+ * - thinking：面向新的、不熟悉的问题或新想法（探索）。
+ */
+export type CardType = 'reflection' | 'thinking';
+
 /** 一条反思条目。date 为主键：每张卡每天至多一条。 */
 export interface ReflectionEntry {
   /** 反思发生的自然日。 */
@@ -22,6 +29,8 @@ export interface Card {
   /** 创建日。 */
   createdAt: ISODate;
   status: CardStatus;
+  /** 卡片类型：反思（审视旧现状）/ 探索（面向新问题）。 */
+  type: CardType;
   /** 历次反思条目，按 date 升序。 */
   entries: ReflectionEntry[];
 }

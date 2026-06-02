@@ -1,14 +1,72 @@
-import type { Card, ISODate, ReflectionDraft, ReflectionEntry } from './types';
+import type {
+  AppData,
+  Card,
+  CardType,
+  ISODate,
+  ReflectionDraft,
+  ReflectionEntry,
+} from './types';
 
-/** 新建一张卡片，初始状态「进行中」、无反思条目。 */
-export function createCard(question: string, today: ISODate): Card {
+/** 既有无类型卡、新建未指定时的默认类型。 */
+export const DEFAULT_CARD_TYPE: CardType = 'reflection';
+
+/** 全部卡片类型（按展示顺序）。 */
+export const CARD_TYPES: readonly CardType[] = ['reflection', 'thinking'];
+
+/** 类型展示名（中文文案单一真源，组件不写死）。 */
+export const CARD_TYPE_LABELS: Record<CardType, string> = {
+  reflection: '反思',
+  thinking: '探索',
+};
+
+/** 列表筛选维度：某一类型，或「全部」。 */
+export type CardTypeFilter = CardType | 'all';
+
+/** 是否合法卡片类型。 */
+export function isCardType(v: unknown): v is CardType {
+  return v === 'reflection' || v === 'thinking';
+}
+
+/** 把任意值收敛为合法类型；缺失 / 非法 → 默认类型。 */
+export function coerceCardType(v: unknown): CardType {
+  return isCardType(v) ? v : DEFAULT_CARD_TYPE;
+}
+
+/** 新建一张卡片，初始状态「进行中」、无反思条目；未指定类型则用默认。 */
+export function createCard(
+  question: string,
+  today: ISODate,
+  type: CardType = DEFAULT_CARD_TYPE,
+): Card {
   return {
     id: crypto.randomUUID(),
     question: question.trim(),
     createdAt: today,
     status: 'open',
+    type,
     entries: [],
   };
+}
+
+/**
+ * 读边界归一：对来自持久化的整包数据，补齐每张卡缺失 / 非法的 type 为默认。
+ * dev（Vite 中间件读文件）与 prod（Neon）数据都经 useCards.load 调用此处，
+ * 是「既有无 type 数据无损读取」的唯一兜底点；写回沿用整包 jsonb 自然带上。
+ */
+export function normalizeAppData(data: AppData): AppData {
+  const cards = Array.isArray(data.cards) ? data.cards : [];
+  return {
+    version: 1,
+    cards: cards.map((c) => ({
+      ...c,
+      type: coerceCardType((c as { type?: unknown }).type),
+    })),
+  };
+}
+
+/** 设置卡片类型（不可变更新）。 */
+export function setCardType(card: Card, type: CardType): Card {
+  return { ...card, type };
 }
 
 /** 查找当日反思条目（不存在返回 undefined）。 */
@@ -81,6 +139,18 @@ export interface GroupedCards {
   reflectedToday: Card[];
   /** 阶段性解决。 */
   resolved: Card[];
+}
+
+/** 按类型筛选卡片；filter 为 'all' 时原样返回。 */
+export function filterCardsByType(cards: Card[], filter: CardTypeFilter): Card[] {
+  return filter === 'all' ? cards : cards.filter((c) => coerceCardType(c.type) === filter);
+}
+
+/** 各类型计数（含 all = 总数），用于筛选条徽标。 */
+export function countByType(cards: Card[]): Record<CardTypeFilter, number> {
+  const out: Record<CardTypeFilter, number> = { all: cards.length, reflection: 0, thinking: 0 };
+  for (const c of cards) out[coerceCardType(c.type)]++;
+  return out;
 }
 
 /** 按状态与今日反思情况把卡片分三组。 */

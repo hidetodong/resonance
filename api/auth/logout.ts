@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { clearCookie } from '../_lib/auth';
-import { isSecure } from '../_lib/http';
+import { clearCookie } from '../_lib/auth.js';
+import { isSecure } from '../_lib/http.js';
 
 /** POST /api/auth/logout → 200 + 清 Cookie。 */
 export default function handler(req: VercelRequest, res: VercelResponse): void {

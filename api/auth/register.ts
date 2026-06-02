@@ -6,9 +6,9 @@ import {
   sessionExp,
   safeEqual,
   requireEnv,
-} from '../_lib/auth';
-import { readBody, isSecure } from '../_lib/http';
-import { ensureSchema, findUserByEmail, createUser } from '../_lib/db';
+} from '../_lib/auth.js';
+import { readBody, isSecure } from '../_lib/http.js';
+import { ensureSchema, findUserByEmail, createUser } from '../_lib/db.js';
 
 interface Body {
   email?: string;

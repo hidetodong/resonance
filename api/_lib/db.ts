@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import type { AppData } from '../../src/domain/types';
+import type { AppData } from '../../src/domain/types.js';
 
 /**
  * 数据访问层（Neon Postgres，HTTP 驱动）。

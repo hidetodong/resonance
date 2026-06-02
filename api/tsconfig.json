@@ -2,8 +2,8 @@
   "//": "供 @vercel/node 编译 /api 函数使用：离函数最近的 tsconfig，提供 Node 类型。本地 type-check 亦用它（--noEmit）。",
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "lib": ["ESNext"],
     "types": ["node"],
     "strict": true,

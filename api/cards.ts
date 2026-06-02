@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSession, requireEnv } from './_lib/auth';
-import { readBody } from './_lib/http';
-import { ensureSchema, loadData, saveData } from './_lib/db';
-import type { AppData } from '../src/domain/types';
+import { getSession, requireEnv } from './_lib/auth.js';
+import { readBody } from './_lib/http.js';
+import { ensureSchema, loadData, saveData } from './_lib/db.js';
+import type { AppData } from '../src/domain/types.js';
 
 /**
  * GET  /api/cards → 200 AppData

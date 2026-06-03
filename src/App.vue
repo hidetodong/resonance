@@ -15,6 +15,8 @@ import ViewSwitcher from "./components/ViewSwitcher.vue";
 import ArchiveView from "./components/ArchiveView.vue";
 import StatsView from "./components/StatsView.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
+import Spinner from "./components/Spinner.vue";
+import SkeletonList from "./components/SkeletonList.vue";
 
 const {
   loading,
@@ -43,6 +45,19 @@ const {
 /** 顶级视图（纯导航 UI，不落盘，刷新回默认）。 */
 const currentView = ref<AppView>("cards");
 const heatGrid = computed(() => buildHeatGrid(heatmap.value, todayDate.value));
+
+/** 切换顶级视图：每个视图从占位起步，清空跨视图选中，避免错配。 */
+function onChangeView(view: AppView) {
+  currentView.value = view;
+  select(null);
+}
+/** 右侧详情面板的占位文案，随当前视图变化。 */
+const placeholderText = computed(() => {
+  if (currentView.value === "archive")
+    return "从左侧归档选一张卡片，查看完整反思时间线。";
+  if (currentView.value === "stats") return "统计概览见左侧侧栏。";
+  return "从左侧选一张卡片开始回顾，或新建一个问题。";
+});
 
 const { user, ready, authDisabled, signOut } = useAuth();
 // 需登录 = 已就绪 && 后端启用认证 && 未登录
@@ -93,10 +108,10 @@ function onResolve() {
   if (selectedCard.value) setResolved(selectedCard.value.id, true);
 }
 function onReopen() {
-  if (selectedCard.value) setResolved(selectedCard.value.id, false);
-}
-function onReopenFromArchive(id: string) {
-  setResolved(id, false);
+  if (!selectedCard.value) return;
+  setResolved(selectedCard.value.id, false);
+  // reopen 后该卡变回进行中，切回卡片视图并保留选中，右侧续显其详情。
+  currentView.value = "cards";
 }
 function onRemove() {
   if (!selectedCard.value) return;
@@ -115,17 +130,12 @@ function cancelDelete() {
 </script>
 
 <template>
-  <div v-if="booting" class="boot">加载中…</div>
+  <div v-if="booting" class="boot">
+    <Spinner :size="28" />
+    <p>加载中…</p>
+  </div>
   <LoginView v-else-if="needsLogin" />
-  <div
-    v-else
-    class="app"
-    :class="{
-      'has-selection': currentView === 'cards' && !!selectedCard,
-      'view-archive': currentView === 'archive',
-      'view-stats': currentView === 'stats',
-    }"
-  >
+  <div v-else class="app" :class="{ 'has-selection': !!selectedCard }">
     <aside class="sidebar">
       <header class="brand">
         <div class="brand-row">
@@ -136,58 +146,62 @@ function cancelDelete() {
           {{ formatFullDate(todayDate) }} · 待回顾 {{ pendingCount }}
         </p>
       </header>
-      <ViewSwitcher :current="currentView" @change="currentView = $event" />
-      <template v-if="currentView === 'cards'">
-        <CardTypeFilter
-          :current="typeFilter"
-          :counts="typeCounts"
-          @change="setTypeFilter"
-        />
-        <CardList
-          :grouped="grouped"
+      <ViewSwitcher :current="currentView" @change="onChangeView" />
+      <CardTypeFilter
+        v-if="currentView === 'cards' && !loading"
+        :current="typeFilter"
+        :counts="typeCounts"
+        @change="setTypeFilter"
+      />
+      <div class="sidebar-body">
+        <template v-if="currentView === 'cards'">
+          <SkeletonList v-if="loading" />
+          <CardList
+            v-else
+            :grouped="grouped"
+            :selected-id="selectedId"
+            :today-date="todayDate"
+            @select="select"
+          />
+        </template>
+
+        <ArchiveView
+          v-else-if="currentView === 'archive'"
+          :cards="archivedCards"
           :selected-id="selectedId"
           :today-date="todayDate"
           @select="select"
         />
-      </template>
+
+        <StatsView
+          v-else
+          :grid="heatGrid"
+          :stats="solveStats"
+          :today-date="todayDate"
+        />
+      </div>
     </aside>
 
     <main class="main">
       <p v-if="error" class="error">{{ error }}</p>
 
-      <template v-if="currentView === 'cards'">
-        <button v-if="selectedCard" class="back-btn" @click="select(null)">
-          ← 返回列表
-        </button>
-        <CardDetail
-          v-if="selectedCard"
-          :card="selectedCard"
-          :today-date="todayDate"
-          @save="onSave"
-          @resolve="onResolve"
-          @reopen="onReopen"
-          @remove="onRemove"
-          @set-type="onSetType"
-        />
-        <div v-else class="placeholder">
-          <p v-if="loading">加载中…</p>
-          <p v-else>从左侧选一张卡片开始回顾，或新建一个问题。</p>
-        </div>
-      </template>
-
-      <ArchiveView
-        v-else-if="currentView === 'archive'"
-        :cards="archivedCards"
+      <button v-if="selectedCard" class="back-btn" @click="select(null)">
+        ← 返回列表
+      </button>
+      <CardDetail
+        v-if="selectedCard"
+        :card="selectedCard"
         :today-date="todayDate"
-        @reopen="onReopenFromArchive"
+        @save="onSave"
+        @resolve="onResolve"
+        @reopen="onReopen"
+        @remove="onRemove"
+        @set-type="onSetType"
       />
-
-      <StatsView
-        v-else
-        :grid="heatGrid"
-        :stats="solveStats"
-        :today-date="todayDate"
-      />
+      <div v-else class="placeholder">
+        <Spinner v-if="loading" :size="24" />
+        <p v-else>{{ placeholderText }}</p>
+      </div>
     </main>
 
     <button
@@ -226,6 +240,11 @@ function cancelDelete() {
   background: var(--panel);
   border-right: 1px solid var(--line);
 }
+.sidebar-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
 .brand {
   padding: 14px 16px 10px;
   border-bottom: 1px solid var(--line);
@@ -257,10 +276,15 @@ function cancelDelete() {
 .boot {
   height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
   color: var(--ink-soft);
   font-size: 14px;
+}
+.boot p {
+  margin: 0;
 }
 .subtitle {
   margin: 4px 0 0;
@@ -280,6 +304,8 @@ function cancelDelete() {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0 24px;
+  text-align: center;
   color: var(--ink-soft);
   font-size: 14px;
 }
@@ -325,11 +351,6 @@ function cancelDelete() {
     display: none;
   }
   .app.has-selection .main {
-    display: block;
-  }
-  /* 归档 / 统计视图在窄屏：侧栏仅剩 brand+switcher（短），内容在 main 下方堆叠展示，switcher 始终可达可切回。 */
-  .app.view-archive .main,
-  .app.view-stats .main {
     display: block;
   }
   .app.has-selection .fab {

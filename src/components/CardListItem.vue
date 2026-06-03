@@ -46,7 +46,7 @@ const preview = computed(() => latestEntry(props.card)?.thought ?? '');
   border: 1px solid transparent;
   border-radius: 8px;
   padding: 8px 11px;
-  margin: 1px 0;
+  margin: 0 0 8px;
   background: transparent;
 }
 .item:hover {

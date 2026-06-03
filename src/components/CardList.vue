@@ -48,8 +48,6 @@ const isEmpty = () =>
 
 <style scoped>
 .list {
-  flex: 1;
-  overflow-y: auto;
   padding: 8px 10px 16px;
 }
 section {

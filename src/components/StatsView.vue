@@ -50,12 +50,10 @@ function barWidth(cards: number): string {
 
 <style scoped>
 .stats {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 22px 24px 56px;
+  padding: 16px 14px 32px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
 }
 .solve h3 {
   font-size: 15px;

@@ -57,10 +57,15 @@ export function normalizeAppData(data: AppData): AppData {
   const cards = Array.isArray(data.cards) ? data.cards : [];
   return {
     version: 1,
-    cards: cards.map((c) => ({
-      ...c,
-      type: coerceCardType((c as { type?: unknown }).type),
-    })),
+    cards: cards.map((c) => {
+      const raw = c as { resolvedAt?: unknown };
+      return {
+        ...c,
+        type: coerceCardType((c as { type?: unknown }).type),
+        // resolvedAt 读时兜底：仅接受字符串，缺失 / 脏值 → undefined（不报错、不回填）。
+        resolvedAt: typeof raw.resolvedAt === 'string' ? raw.resolvedAt : undefined,
+      };
+    }),
   };
 }
 
@@ -124,12 +129,14 @@ export function needsReviewToday(card: Card, today: ISODate): boolean {
   return card.status === 'open' && findTodayEntry(card, today) === undefined;
 }
 
-export function markResolved(card: Card): Card {
-  return { ...card, status: 'resolved' };
+/** 标记阶段性解决，记录解决日（当日）。 */
+export function markResolved(card: Card, today: ISODate): Card {
+  return { ...card, status: 'resolved', resolvedAt: today };
 }
 
+/** 恢复进行中，清除解决日（落盘时 undefined 键被 JSON.stringify 丢弃）。 */
 export function reopen(card: Card): Card {
-  return { ...card, status: 'open' };
+  return { ...card, status: 'open', resolvedAt: undefined };
 }
 
 export interface GroupedCards {
@@ -168,4 +175,82 @@ export function groupCards(cards: Card[], today: ISODate): GroupedCards {
     }
   }
   return { pending, reflectedToday, resolved };
+}
+
+/** 已解决卡片归档排序：解决日降序（缺失排后），再按创建日降序。 */
+export function sortArchived(cards: Card[]): Card[] {
+  return cards
+    .filter((c) => c.status === 'resolved')
+    .slice()
+    .sort((a, b) => {
+      const ra = a.resolvedAt ?? '';
+      const rb = b.resolvedAt ?? '';
+      if (ra !== rb) return ra < rb ? 1 : -1; // 有解决日的在前、较新的在前
+      return a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0;
+    });
+}
+
+/** 反思热力图聚合：按自然日统计反思条目数（跨全部卡）。 */
+export interface HeatmapAggregate {
+  /** 某自然日的反思条目数。 */
+  counts: Record<ISODate, number>;
+  /** 反思条目总数。 */
+  total: number;
+  /** 最早反思日（ISO 字符串可直接字典序比较）；无反思为 null。 */
+  firstDate: ISODate | null;
+  /** 最晚反思日；无反思为 null。 */
+  lastDate: ISODate | null;
+}
+
+export function buildHeatmap(cards: Card[]): HeatmapAggregate {
+  const counts: Record<ISODate, number> = {};
+  let total = 0;
+  let firstDate: ISODate | null = null;
+  let lastDate: ISODate | null = null;
+  for (const card of cards) {
+    for (const e of card.entries) {
+      counts[e.date] = (counts[e.date] ?? 0) + 1;
+      total++;
+      if (firstDate === null || e.date < firstDate) firstDate = e.date;
+      if (lastDate === null || e.date > lastDate) lastDate = e.date;
+    }
+  }
+  return { counts, total, firstDate, lastDate };
+}
+
+/** 「平均反思多少次才解决」统计：已解决卡的反思次数均值与分布。 */
+export interface SolveBucket {
+  /** 反思次数。 */
+  reflections: number;
+  /** 该次数的已解决卡数。 */
+  cards: number;
+}
+export interface SolveStats {
+  /** 已解决卡数 M。 */
+  resolvedCount: number;
+  /** 平均反思次数（M=0 时为 0；未四舍五入，展示侧 round）。 */
+  average: number;
+  /** 出现过的反思次数值（升序）各自频次。 */
+  distribution: SolveBucket[];
+  /** 频次最大值（直方图条长归一用）。 */
+  maxCards: number;
+}
+
+export function buildSolveStats(cards: Card[]): SolveStats {
+  const counts = cards
+    .filter((c) => c.status === 'resolved')
+    .map((c) => c.entries.length);
+  const resolvedCount = counts.length;
+  if (resolvedCount === 0) {
+    return { resolvedCount: 0, average: 0, distribution: [], maxCards: 0 };
+  }
+  const sum = counts.reduce((a, b) => a + b, 0);
+  const average = sum / resolvedCount;
+  const freq = new Map<number, number>();
+  for (const n of counts) freq.set(n, (freq.get(n) ?? 0) + 1);
+  const distribution: SolveBucket[] = [...freq.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([reflections, cardsCount]) => ({ reflections, cards: cardsCount }));
+  const maxCards = Math.max(...distribution.map((b) => b.cards));
+  return { resolvedCount, average, distribution, maxCards };
 }

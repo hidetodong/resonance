@@ -31,6 +31,8 @@ export interface Card {
   status: CardStatus;
   /** 卡片类型：反思（审视旧现状）/ 探索（面向新问题）。 */
   type: CardType;
+  /** 标记阶段性解决的自然日；reopen 时清除；既有解决卡可能缺失（日期未知）。 */
+  resolvedAt?: ISODate;
   /** 历次反思条目，按 date 升序。 */
   entries: ReflectionEntry[];
 }

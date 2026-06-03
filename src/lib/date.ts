@@ -33,6 +33,33 @@ export function daysBetween(from: ISODate, to: ISODate): number {
   return Math.round(ms / 86_400_000);
 }
 
+/** 在 date 上加 n 天（可负），返回 'YYYY-MM-DD'，基于本地零点。 */
+export function addDays(date: ISODate, n: number): ISODate {
+  const d = new Date(`${date}T00:00:00`);
+  d.setDate(d.getDate() + n);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** 星期索引：0=周日 … 6=周六（与 GitHub 热力图同，周日起首）。 */
+export function weekdayIndex(date: ISODate): number {
+  return new Date(`${date}T00:00:00`).getDay();
+}
+
+/** 从 from 到 to（含两端）逐日的 ISODate 数组；from > to 时返回 []。 */
+export function eachDayInclusive(from: ISODate, to: ISODate): ISODate[] {
+  if (from > to) return [];
+  const out: ISODate[] = [];
+  let cur = from;
+  while (cur <= to) {
+    out.push(cur);
+    cur = addDays(cur, 1);
+  }
+  return out;
+}
+
 /** 列表展示用的「回顾新鲜度」文案。 */
 export function reviewFreshness(last: ISODate | null, today: ISODate): string {
   if (last === null) return '还没反思过';

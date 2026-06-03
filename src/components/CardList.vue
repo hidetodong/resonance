@@ -10,10 +10,10 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ select: [id: string] }>();
 
+// 卡片视图只展示进行中两组；已解决卡片归档到「归档」视图。
 const isEmpty = () =>
   props.grouped.pending.length === 0 &&
-  props.grouped.reflectedToday.length === 0 &&
-  props.grouped.resolved.length === 0;
+  props.grouped.reflectedToday.length === 0;
 </script>
 
 <template>
@@ -42,19 +42,7 @@ const isEmpty = () =>
       />
     </section>
 
-    <section v-if="grouped.resolved.length">
-      <h3 class="group-title resolved">阶段性解决 · {{ grouped.resolved.length }}</h3>
-      <CardListItem
-        v-for="c in grouped.resolved"
-        :key="c.id"
-        :card="c"
-        :today-date="todayDate"
-        :selected="c.id === selectedId"
-        @select="emit('select', $event)"
-      />
-    </section>
-
-    <p v-if="isEmpty()" class="empty">还没有卡片。在上方写下第一个问题吧。</p>
+    <p v-if="isEmpty()" class="empty">还没有进行中的卡片。在右下角写下第一个问题吧。</p>
   </div>
 </template>
 

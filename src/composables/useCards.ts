@@ -32,7 +32,15 @@ export function useCards() {
     () => cards.value.find((c) => c.id === selectedId.value) ?? null,
   );
   const pendingCount = computed(() => allGrouped.value.pending.length);
-  const typeCounts = computed(() => domain.countByType(cards.value));
+  // 类型筛选是卡片视图控件，计数只覆盖进行中卡（已解决卡归档到归档视图，不在此过滤范围）。
+  const typeCounts = computed(() =>
+    domain.countByType(cards.value.filter((c) => c.status !== 'resolved')),
+  );
+  // 归档：全部已解决卡，按解决日降序（独立于类型筛选）。
+  const archivedCards = computed(() => domain.sortArchived(cards.value));
+  // 统计派生（只读）：反思热力聚合 + 解决次数统计。
+  const heatmap = computed(() => domain.buildHeatmap(cards.value));
+  const solveStats = computed(() => domain.buildSolveStats(cards.value));
 
   async function persist(): Promise<void> {
     try {
@@ -89,7 +97,7 @@ export function useCards() {
   async function setResolved(cardId: string, resolved: boolean): Promise<void> {
     cards.value = cards.value.map((c) => {
       if (c.id !== cardId) return c;
-      return resolved ? domain.markResolved(c) : domain.reopen(c);
+      return resolved ? domain.markResolved(c, todayDate.value) : domain.reopen(c);
     });
     await persist();
   }
@@ -122,6 +130,9 @@ export function useCards() {
     pendingCount,
     typeFilter,
     typeCounts,
+    archivedCards,
+    heatmap,
+    solveStats,
     load,
     addCard,
     saveTodayReflection,

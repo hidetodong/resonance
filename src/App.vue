@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { CardType, ReflectionDraft } from "./domain/types";
+import type { AppView } from "./lib/view";
 import { useCards } from "./composables/useCards";
 import { useAuth } from "./composables/useAuth";
 import { formatFullDate } from "./lib/date";
+import { buildHeatGrid } from "./lib/heatmap";
 import LoginView from "./components/LoginView.vue";
 import NewCardDialog from "./components/NewCardDialog.vue";
 import CardList from "./components/CardList.vue";
 import CardTypeFilter from "./components/CardTypeFilter.vue";
 import CardDetail from "./components/CardDetail.vue";
+import ViewSwitcher from "./components/ViewSwitcher.vue";
+import ArchiveView from "./components/ArchiveView.vue";
+import StatsView from "./components/StatsView.vue";
 import ConfirmDialog from "./components/ConfirmDialog.vue";
 
 const {
@@ -21,6 +26,9 @@ const {
   pendingCount,
   typeFilter,
   typeCounts,
+  archivedCards,
+  heatmap,
+  solveStats,
   load,
   addCard,
   saveTodayReflection,
@@ -31,6 +39,10 @@ const {
   select,
   reset,
 } = useCards();
+
+/** 顶级视图（纯导航 UI，不落盘，刷新回默认）。 */
+const currentView = ref<AppView>("cards");
+const heatGrid = computed(() => buildHeatGrid(heatmap.value, todayDate.value));
 
 const { user, ready, authDisabled, signOut } = useAuth();
 // 需登录 = 已就绪 && 后端启用认证 && 未登录
@@ -83,6 +95,9 @@ function onResolve() {
 function onReopen() {
   if (selectedCard.value) setResolved(selectedCard.value.id, false);
 }
+function onReopenFromArchive(id: string) {
+  setResolved(id, false);
+}
 function onRemove() {
   if (!selectedCard.value) return;
   pendingDeleteId.value = selectedCard.value.id;
@@ -102,7 +117,15 @@ function cancelDelete() {
 <template>
   <div v-if="booting" class="boot">加载中…</div>
   <LoginView v-else-if="needsLogin" />
-  <div v-else class="app" :class="{ 'has-selection': !!selectedCard }">
+  <div
+    v-else
+    class="app"
+    :class="{
+      'has-selection': currentView === 'cards' && !!selectedCard,
+      'view-archive': currentView === 'archive',
+      'view-stats': currentView === 'stats',
+    }"
+  >
     <aside class="sidebar">
       <header class="brand">
         <div class="brand-row">
@@ -113,41 +136,66 @@ function cancelDelete() {
           {{ formatFullDate(todayDate) }} · 待回顾 {{ pendingCount }}
         </p>
       </header>
-      <CardTypeFilter
-        :current="typeFilter"
-        :counts="typeCounts"
-        @change="setTypeFilter"
-      />
-      <CardList
-        :grouped="grouped"
-        :selected-id="selectedId"
-        :today-date="todayDate"
-        @select="select"
-      />
+      <ViewSwitcher :current="currentView" @change="currentView = $event" />
+      <template v-if="currentView === 'cards'">
+        <CardTypeFilter
+          :current="typeFilter"
+          :counts="typeCounts"
+          @change="setTypeFilter"
+        />
+        <CardList
+          :grouped="grouped"
+          :selected-id="selectedId"
+          :today-date="todayDate"
+          @select="select"
+        />
+      </template>
     </aside>
 
     <main class="main">
-      <button v-if="selectedCard" class="back-btn" @click="select(null)">
-        ← 返回列表
-      </button>
       <p v-if="error" class="error">{{ error }}</p>
-      <CardDetail
-        v-if="selectedCard"
-        :card="selectedCard"
+
+      <template v-if="currentView === 'cards'">
+        <button v-if="selectedCard" class="back-btn" @click="select(null)">
+          ← 返回列表
+        </button>
+        <CardDetail
+          v-if="selectedCard"
+          :card="selectedCard"
+          :today-date="todayDate"
+          @save="onSave"
+          @resolve="onResolve"
+          @reopen="onReopen"
+          @remove="onRemove"
+          @set-type="onSetType"
+        />
+        <div v-else class="placeholder">
+          <p v-if="loading">加载中…</p>
+          <p v-else>从左侧选一张卡片开始回顾，或新建一个问题。</p>
+        </div>
+      </template>
+
+      <ArchiveView
+        v-else-if="currentView === 'archive'"
+        :cards="archivedCards"
         :today-date="todayDate"
-        @save="onSave"
-        @resolve="onResolve"
-        @reopen="onReopen"
-        @remove="onRemove"
-        @set-type="onSetType"
+        @reopen="onReopenFromArchive"
       />
-      <div v-else class="placeholder">
-        <p v-if="loading">加载中…</p>
-        <p v-else>从左侧选一张卡片开始回顾，或新建一个问题。</p>
-      </div>
+
+      <StatsView
+        v-else
+        :grid="heatGrid"
+        :stats="solveStats"
+        :today-date="todayDate"
+      />
     </main>
 
-    <button class="fab" aria-label="新建问题" @click="newCardOpen = true">
+    <button
+      v-if="currentView === 'cards'"
+      class="fab"
+      aria-label="新建问题"
+      @click="newCardOpen = true"
+    >
       +
     </button>
 
@@ -277,6 +325,11 @@ function cancelDelete() {
     display: none;
   }
   .app.has-selection .main {
+    display: block;
+  }
+  /* 归档 / 统计视图在窄屏：侧栏仅剩 brand+switcher（短），内容在 main 下方堆叠展示，switcher 始终可达可切回。 */
+  .app.view-archive .main,
+  .app.view-stats .main {
     display: block;
   }
   .app.has-selection .fab {

@@ -7,9 +7,9 @@
   "scripts": {
     "dev": "vite",
     "type-check": "vue-tsc --noEmit && tsc -p api/tsconfig.json --noEmit",
-    "test": "node --test api/_lib/auth.test.ts src/domain/card.test.ts",
+    "test": "node --test api/_lib/auth.test.ts src/domain/card.test.ts src/lib/date.test.ts src/lib/heatmap.test.ts",
     "test:server": "node --test api/_lib/auth.test.ts",
-    "test:domain": "node --test src/domain/card.test.ts",
+    "test:domain": "node --test src/domain/card.test.ts src/lib/date.test.ts src/lib/heatmap.test.ts",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview"
   },

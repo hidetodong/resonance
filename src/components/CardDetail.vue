@@ -31,7 +31,7 @@ const timelineEntries = computed(() =>
           isResolved ? '阶段性解决' : '进行中'
         }}</span>
       </div>
-      <div class="head-actions">
+      <div class="detail-toolbar">
         <div class="type-switch" role="group" aria-label="卡片类型">
           <button
             v-for="t in CARD_TYPES"
@@ -44,8 +44,17 @@ const timelineEntries = computed(() =>
             {{ CARD_TYPE_LABELS[t] }}
           </button>
         </div>
-        <button v-if="!isResolved" @click="emit('resolve')">标记阶段性解决</button>
-        <button v-else @click="emit('reopen')">恢复进行中</button>
+        <button
+          v-if="!isResolved"
+          type="button"
+          class="primary btn-resolve"
+          @click="emit('resolve')"
+        >
+          标记阶段性解决
+        </button>
+        <button v-else type="button" class="btn-reopen" @click="emit('reopen')">
+          恢复进行中
+        </button>
       </div>
     </header>
 
@@ -84,14 +93,14 @@ const timelineEntries = computed(() =>
 }
 .detail-head {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 14px;
   margin-bottom: 18px;
 }
 .title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 10px;
   min-width: 0;
 }
@@ -99,6 +108,7 @@ const timelineEntries = computed(() =>
   font-size: 20px;
   margin: 0;
   line-height: 1.35;
+  min-width: 0;
 }
 .status {
   flex: none;
@@ -118,12 +128,28 @@ const timelineEntries = computed(() =>
   border-color: #bcd6c7;
   background: #eef5f0;
 }
-.head-actions {
-  flex: none;
+.detail-toolbar {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.btn-resolve {
+  padding: 4px 16px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+.btn-resolve::before {
+  content: '✓';
+  margin-right: 6px;
+  font-size: 13px;
+}
+.btn-reopen {
+  padding: 4px 16px;
+  border-radius: 8px;
 }
 .type-switch {
   display: inline-flex;
@@ -226,9 +252,6 @@ const timelineEntries = computed(() =>
   }
   .question {
     font-size: 18px;
-  }
-  .detail-head {
-    flex-wrap: wrap;
   }
 }
 </style>

@@ -16,6 +16,10 @@ const emit = defineEmits<{
 
 const history = computed(() => historicalEntries(props.card, props.todayDate));
 const isResolved = computed(() => props.card.status === 'resolved');
+// 已解决卡：整条时间线只读（含当日条目），按时间倒序，不再显示可编辑「今天」节点。
+const timelineEntries = computed(() =>
+  isResolved.value ? props.card.entries.slice().reverse() : history.value,
+);
 </script>
 
 <template>
@@ -46,7 +50,7 @@ const isResolved = computed(() => props.card.status === 'resolved');
     </header>
 
     <ol class="timeline">
-      <li class="entry today">
+      <li v-if="!isResolved" class="entry today">
         <div class="entry-date">今天 · {{ formatDate(todayDate) }}</div>
         <ReflectionEditor
           :card="card"
@@ -54,7 +58,7 @@ const isResolved = computed(() => props.card.status === 'resolved');
           @save="emit('save', $event)"
         />
       </li>
-      <li v-for="e in history" :key="e.date" class="entry">
+      <li v-for="e in timelineEntries" :key="e.date" class="entry">
         <div class="entry-date">{{ formatFullDate(e.date) }}</div>
         <div class="entry-body">
           <p class="thought">{{ e.thought }}</p>
@@ -62,8 +66,8 @@ const isResolved = computed(() => props.card.status === 'resolved');
         </div>
       </li>
     </ol>
-    <p v-if="!history.length" class="empty-history">
-      还没有更早的反思——这条时间线从今天开始。
+    <p v-if="!timelineEntries.length" class="empty-history">
+      {{ isResolved ? '这张卡没有反思记录就直接解决了。' : '还没有更早的反思——这条时间线从今天开始。' }}
     </p>
 
     <footer class="detail-foot">
